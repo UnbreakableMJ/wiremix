@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# REUSE (https://reuse.software) annotations for files that cannot carry an
+# inline SPDX header (generated lockfiles, prose documents, and the root GPL
+# license pointer). Source files and manifests carry inline two-tag headers.
+
+version = 1
+
+# Generated lockfiles — no inline header possible.
+[[annotations]]
+path = ["Cargo.lock", "flake.lock"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+# Prose documents (README, changelog, posture files, agent/context files).
+# Documents default to CC-BY-SA-4.0 per The Steelbore Standard §4.1.1.
+[[annotations]]
+path = "**/*.md"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>"
+SPDX-License-Identifier = "CC-BY-SA-4.0"
+
+# Root GPL pointer for GitHub license detection. The canonical, REUSE-tracked
+# copy lives in LICENSES/GPL-3.0-or-later.txt; this is a verbatim duplicate.
+[[annotations]]
+path = "LICENSE"
+precedence = "override"
+SPDX-FileCopyrightText = "2007 Free Software Foundation, Inc. <https://fsf.org/>"
+SPDX-License-Identifier = "GPL-3.0-or-later"

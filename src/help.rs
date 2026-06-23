@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 use crossterm::event::{MouseButton, MouseEventKind};
 use ratatui::{
     prelude::{Alignment, Buffer, Constraint, Rect, Widget},

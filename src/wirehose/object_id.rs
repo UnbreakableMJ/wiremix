@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
+// SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Type for representing PipeWire object IDs.
 
 use libspa::utils::dict::DictRef;
@@ -19,10 +23,9 @@ impl From<ObjectId> for u32 {
     }
 }
 
-#[allow(clippy::to_string_trait_impl)] // This isn't for end-users
-impl ToString for ObjectId {
-    fn to_string(&self) -> String {
-        self.0.to_string()
+impl std::fmt::Display for ObjectId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 

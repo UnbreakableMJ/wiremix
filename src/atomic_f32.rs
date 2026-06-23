@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 //! Atomic f32 operations.
 
 use std::sync::atomic::{AtomicU32, Ordering};

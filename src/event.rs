@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 //! Input events for the application.
 //!
 //! These come from [`wirehose`](`crate::wirehose`) (PipeWire events) and from

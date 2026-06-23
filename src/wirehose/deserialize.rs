@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 use libspa::pod::{deserialize::PodDeserializer, Object, Pod, Value};
 
 pub fn deserialize(param: Option<&Pod>) -> Option<Object> {

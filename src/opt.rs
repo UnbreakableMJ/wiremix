@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
+// SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Parse command-line arguments.
 
 use std::path::PathBuf;
@@ -8,16 +12,42 @@ use crate::config::{self, TabKind};
 
 const VERSION: &str = concat!("v", env!("CARGO_PKG_VERSION"));
 
+// `--version` carries the §15.2 attribution block; `--help` gets the footer.
+const LONG_VERSION: &str = concat!(
+    "v",
+    env!("CARGO_PKG_VERSION"),
+    "\n",
+    "Maintained by Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>\n",
+    "Copyright (C) 2026 Mohamed Hammad & Spacecraft Software\n",
+    "License: GPL-3.0-or-later\n",
+    "https://Wiremix.SpacecraftSoftware.org/",
+);
+const FOOTER: &str = concat!(
+    "Maintained by Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>\n",
+    "https://Wiremix.SpacecraftSoftware.org/",
+);
+
 #[derive(Parser, Default)]
-#[clap(name = "wiremix", about = "PipeWire mixer")]
-#[command(version = VERSION)]
+#[clap(
+    name = "wiremix",
+    about = "Dual-mode (TUI + agent-native CLI) mixer for PipeWire"
+)]
+#[command(version = VERSION, long_version = LONG_VERSION, after_help = FOOTER)]
 pub struct Opt {
+    /// Run a one-shot CLI command (omit for the interactive TUI)
+    #[command(subcommand)]
+    pub command: Option<crate::cli::Command>,
+
+    /// Global CLI flags (--json, --format, --fields, --dry-run, ...)
+    #[command(flatten)]
+    pub global: crate::cli::GlobalArgs,
+
     /// Override default config file path
-    #[clap(short = 'c', long, value_name = "FILE")]
+    #[clap(short = 'c', long, value_name = "FILE", global = true)]
     pub config: Option<PathBuf>,
 
     /// The name of the remote to connect to
-    #[clap(short, long, value_name = "NAME")]
+    #[clap(short, long, value_name = "NAME", global = true)]
     pub remote: Option<String>,
 
     /// Target frames per second (or 0 for unlimited)

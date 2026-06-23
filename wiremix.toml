@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
+# SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # This file documents wiremix's configuration file. It is also itself a wiremix
 # configuration file in which wiremix's default configuration is specified.
 # 
@@ -27,6 +31,8 @@ peaks = "auto"
 char_set = "default"
 
 # Theme to use (see Themes section)
+# Built-in themes: "default", "nocolor", "plain", "steelbore"
+# ("steelbore" is the Spacecraft Software house theme, defined in Appendix A)
 theme = "default"
 
 # Initial tab
@@ -489,6 +495,37 @@ dropdown_more = { }
 help_border = { }
 help_item = { }
 help_more = { }
+
+# The Spacecraft Software house theme (Standard §11): the Void Navy / Molten
+# Amber palette over a mandatory Void Navy (#000027) background.
+[themes.steelbore]
+default_device = { fg = "#D98E32", bg = "#000027" }
+default_stream = { fg = "#D98E32", bg = "#000027" }
+selector = { fg = "#4B7EB0", bg = "#000027" }
+tab = { fg = "#D98E32", bg = "#000027" }
+tab_selected = { fg = "#4B7EB0", bg = "#000027", add_modifier = "BOLD" }
+tab_marker = { fg = "#4B7EB0", bg = "#000027" }
+list_more = { fg = "#4B7EB0", bg = "#000027" }
+node_title = { fg = "#D98E32", bg = "#000027" }
+node_target = { fg = "#8BE9FD", bg = "#000027" }
+volume = { fg = "#D98E32", bg = "#000027" }
+volume_empty = { fg = "#4B7EB0", bg = "#000027" }
+volume_filled = { fg = "#D98E32", bg = "#000027" }
+meter_inactive = { fg = "#4B7EB0", bg = "#000027" }
+meter_active = { fg = "#50FA7B", bg = "#000027" }
+meter_overload = { fg = "#FF5C5C", bg = "#000027" }
+meter_center_inactive = { fg = "#4B7EB0", bg = "#000027" }
+meter_center_active = { fg = "#50FA7B", bg = "#000027" }
+config_device = { fg = "#D98E32", bg = "#000027" }
+config_profile = { fg = "#8BE9FD", bg = "#000027" }
+dropdown_icon = { fg = "#4B7EB0", bg = "#000027" }
+dropdown_border = { fg = "#4B7EB0", bg = "#000027" }
+dropdown_item = { fg = "#D98E32", bg = "#000027" }
+dropdown_selected = { fg = "#4B7EB0", bg = "#000027", add_modifier = "REVERSED" }
+dropdown_more = { fg = "#4B7EB0", bg = "#000027" }
+help_border = { fg = "#4B7EB0", bg = "#000027" }
+help_item = { fg = "#D98E32", bg = "#000027" }
+help_more = { fg = "#4B7EB0", bg = "#000027" }
 
 [char_sets.compat]
 default_device = "◊"

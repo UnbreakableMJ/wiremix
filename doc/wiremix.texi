@@ -1,0 +1,334 @@
+\input texinfo @c -*-texinfo-*-
+@c SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+@c SPDX-License-Identifier: CC-BY-SA-4.0
+@c %**start of header
+@set VERSION 0.11.0
+@set UPDATED 2026-06-24
+@setfilename wiremix.info
+@settitle wiremix @value{VERSION}
+@documentencoding UTF-8
+@c %**end of header
+
+@copying
+This manual documents wiremix, a dual-mode (TUI + agent-native CLI) mixer for
+PipeWire, version @value{VERSION}.
+
+Copyright @copyright{} 2026 Mohamed Hammad & Spacecraft Software.
+
+wiremix is a fork of the upstream wiremix by Thomas Sowell
+(@url{https://github.com/tsowell/wiremix}); see the @file{CREDITS.md} file.
+
+@quotation
+Permission is granted to copy, distribute and/or modify this document under the
+terms of the Creative Commons Attribution-ShareAlike 4.0 International License
+(@url{https://creativecommons.org/licenses/by-sa/4.0/}).
+@end quotation
+@end copying
+
+@dircategory Sound
+@direntry
+* wiremix: (wiremix).           Dual-mode TUI + CLI mixer for PipeWire.
+@end direntry
+
+@titlepage
+@title wiremix
+@subtitle A dual-mode (TUI + agent-native CLI) mixer for PipeWire
+@subtitle Version @value{VERSION}
+@author Mohamed Hammad
+@page
+@vskip 0pt plus 1filll
+@insertcopying
+@end titlepage
+
+@contents
+
+@ifnottex
+@node Top
+@top wiremix
+
+@insertcopying
+@end ifnottex
+
+@menu
+* Introduction::                What wiremix is.
+* Invocation::                  Running wiremix and choosing a mode.
+* Interactive TUI::             The terminal user interface.
+* Command-Line Interface::      Noun-verb commands for scripts and agents.
+* Global Flags::                Flags accepted by every command.
+* JSON Output and Exit Codes::  The machine-readable contract.
+* Configuration::               The @file{wiremix.toml} configuration file.
+* Reporting Bugs::              Maintainer and contact.
+@end menu
+
+@node Introduction
+@chapter Introduction
+
+wiremix lets you adjust volumes, route audio between devices and applications,
+and configure audio device settings such as input/output ports and profiles on
+a @uref{https://pipewire.org/, PipeWire} system.
+
+It is @dfn{dual-mode}: an interactive terminal user interface (TUI) for humans,
+and a machine-readable, agent-native command-line interface (CLI) for scripts
+and AI agents. Running @command{wiremix} with no subcommand starts the TUI;
+running a subcommand such as @samp{wiremix node list --json} performs a
+one-shot command and exits.
+
+The TUI is modeled on @command{ncpamixer}, which was itself inspired by
+@command{pavucontrol}.
+
+@node Invocation
+@chapter Invocation
+
+@example
+wiremix [GLOBAL-FLAGS] [SUBCOMMAND ...]
+@end example
+
+@subheading Choosing a mode
+
+With no subcommand, wiremix runs the interactive TUI (@pxref{Interactive TUI}).
+With a subcommand, it runs that one-shot command and exits
+(@pxref{Command-Line Interface}).
+
+@subheading Output-mode detection
+
+For subcommands, the output rendering is resolved by this cascade (first match
+wins):
+
+@enumerate
+@item An explicit @option{--json} or @option{--format} flag.
+@item An agent environment: @env{AI_AGENT}, @env{AGENT}, or @env{CI} set
+(forces JSON, no color, non-interactive).
+@item @code{stdout} is a terminal: human-readable output.
+@item @code{stdout} is piped or redirected: JSON.
+@end enumerate
+
+@option{--format explore} selects the TUI explicitly. When an agent environment
+is detected and no subcommand is given, wiremix does @emph{not} start the TUI;
+it prints a pointer to @samp{wiremix --help} and exits.
+
+@subheading TUI options
+
+These options configure the TUI and are also honored when running it:
+@option{-c}/@option{--config}, @option{-r}/@option{--remote},
+@option{-f}/@option{--fps}, @option{-s}/@option{--char-set},
+@option{-t}/@option{--theme}, @option{-p}/@option{--peaks},
+@option{--mouse}/@option{--no-mouse}, @option{-v}/@option{--tab},
+@option{-T}/@option{--tabs}, @option{-m}/@option{--max-volume-percent},
+@option{--enforce-max-volume}, and @option{--lazy-capture}. Run
+@samp{wiremix --help} for the full list, or see @ref{Configuration} for the
+equivalent file settings.
+
+@node Interactive TUI
+@chapter Interactive TUI
+
+Run @command{wiremix} with no arguments to open the mixer. Tabs across the top
+select Playback, Recording, Output Devices, Input Devices, and Configuration.
+
+Everything except quitting can also be done with the mouse: click the numeric
+volume percentage to toggle muting, scroll lists with the wheel, and
+right-click to set the default source/sink.
+
+@subheading Default key bindings
+
+@multitable @columnfractions .35 .65
+@headitem Input @tab Action
+@item q @tab Quit
+@item m @tab Toggle mute
+@item d @tab Set default source/sink
+@item l / Right @tab Increment volume
+@item h / Left @tab Decrement volume
+@item Enter / c @tab Open dropdown or choose
+@item Esc @tab Cancel dropdown
+@item j / Down @tab Move down
+@item k / Up @tab Move up
+@item H / Shift+Tab @tab Select previous tab
+@item L / Tab @tab Select next tab
+@item ` @tab Set volume 0%
+@item 1 @dots{} 9 @tab Set volume 10% @dots{} 90%
+@item 0 @tab Set volume 100%
+@item ? @tab Toggle help screen
+@end multitable
+
+Key bindings are fully configurable (@pxref{Configuration}).
+
+@node Command-Line Interface
+@chapter Command-Line Interface
+
+The CLI follows a @code{noun verb} structure. Every data-returning command
+supports @option{--json} (@pxref{JSON Output and Exit Codes}); every write
+command supports @option{--dry-run}. Object ids come from the corresponding
+@code{list} command and are @emph{not} stable across PipeWire restarts; the
+@code{serial} and @code{name} fields let you re-resolve a target.
+
+@subheading nodes
+
+Nodes are streams and device endpoints --- anything with a volume you can set.
+
+@table @samp
+@item node list
+List controllable nodes (with @code{kind}, volumes, mute, default flags).
+@item node get @var{id}
+Show one node.
+@item node set-volume @var{id} @var{percent}
+Set a node's volume, as a percentage applied to all channels (100 = unity).
+@item node mute @var{id} [--on | --off | --toggle]
+Mute, unmute, or toggle a node. The default is to toggle.
+@item node set-default @var{id}
+Set a sink node as the default sink, or a source node as the default source.
+@end table
+
+@subheading devices
+
+@table @samp
+@item device list
+List devices with their profiles.
+@item device get @var{id}
+Show one device: the active profile and all available profiles.
+@item device set-profile @var{id} @var{index}
+Switch a device to the profile with the given index (see @samp{device get}).
+@end table
+
+@subheading other
+
+@table @samp
+@item link list
+List links (connections) between nodes.
+@item metadata list
+List metadata objects and their properties.
+@item metadata get [--name @var{name}]
+Show one metadata object; @var{name} defaults to @samp{default}.
+@item server info
+Show the default sink/source, object counts, and the connected remote.
+@item schema
+Print the JSON Schema (Draft 2020-12) describing the whole CLI.
+@item describe
+Print a capability manifest of the CLI.
+@end table
+
+@node Global Flags
+@chapter Global Flags
+
+These flags are accepted by every subcommand.
+
+@table @option
+@item --json
+Alias for @option{--format json}.
+@item --format @var{fmt}
+One of @code{json}, @code{jsonl}, or @code{explore} (the TUI).
+@item --fields @var{a,b,@dots{}}
+Restrict output records to the listed fields, reducing token cost for agents.
+@item --dry-run
+Emit the action plan as JSON and make no changes (write commands).
+@item --verbose
+Diagnostic output to @code{stderr}.
+@item -q, --quiet
+Suppress non-error @code{stderr}.
+@item --color @var{when}
+@code{never}, @code{always}, or @code{auto}. Output is plain text, so this is
+accepted for cross-CLI compatibility.
+@item --no-color
+Disable color.
+@item --absolute-time
+Render absolute time. Output is always ISO 8601 UTC regardless.
+@item -0, --print0
+NUL-terminate output for filename-safe piping.
+@item --yes, --force
+Skip confirmation in non-interactive mode.
+@item -h, --help
+Print help.
+@item -V, --version
+Print version and maintainer attribution.
+@end table
+
+@node JSON Output and Exit Codes
+@chapter JSON Output and Exit Codes
+
+@subheading The response envelope
+
+Every @option{--json} response is a single JSON document:
+
+@example
+@{
+  "metadata": @{ "tool", "version", "command", "timestamp", @dots{} @},
+  "data": @dots{}
+@}
+@end example
+
+@code{stdout} carries data only; diagnostics and errors go to @code{stderr}.
+Timestamps are ISO 8601 UTC with a @code{Z} suffix. With @option{--format
+jsonl}, list records are emitted one JSON object per line (no envelope).
+
+@subheading Structured errors
+
+In machine mode a non-zero exit also prints an error object to @code{stderr}.
+Its @code{hint} field is a @emph{runnable} command, not prose:
+
+@example
+@{"error": @{"code": "NOT_FOUND", "exit_code": 3,
+  "message": "no node with id 999",
+  "hint": "wiremix node list --json", @dots{}@}@}
+@end example
+
+@subheading Exit codes
+
+@multitable @columnfractions .15 .85
+@headitem Code @tab Meaning
+@item 0 @tab Success
+@item 1 @tab General failure
+@item 2 @tab Usage error (bad arguments)
+@item 3 @tab Resource not found
+@item 4 @tab Permission denied
+@item 5 @tab Conflict
+@end multitable
+
+@node Configuration
+@chapter Configuration
+
+wiremix reads an optional TOML configuration file, searched for in this order:
+
+@enumerate
+@item the path given with @option{-c}/@option{--config};
+@item @file{$XDG_CONFIG_HOME/wiremix/wiremix.toml};
+@item @file{~/.config/wiremix/wiremix.toml}.
+@end enumerate
+
+The file is merged onto the built-in defaults, so it need only specify what you
+want to change. Command-line options override the corresponding file settings.
+
+The bundled @file{wiremix.toml} in the source repository is both an example and
+the canonical reference for every option and default. It documents:
+
+@table @asis
+@item Basic options
+@code{remote}, @code{fps}, @code{mouse}, @code{peaks}, @code{char_set},
+@code{theme}, @code{tab}, @code{tabs}, @code{max_volume_percent},
+@code{enforce_max_volume}, and @code{lazy_capture}.
+@item Key bindings
+Every action can be bound to keys; both CUA-style and @code{hjkl}/Vim-style
+navigation are supported.
+@item Themes
+Colors and attributes for each UI element. Four themes are built in:
+@code{default}, @code{nocolor}, @code{plain}, and @code{steelbore} --- the
+Spacecraft Software house theme, which uses the Void Navy / Molten Amber palette
+over a Void Navy background. Select one with @code{theme = "steelbore"} or
+@option{-t steelbore}.
+@item Character sets
+The symbols used in the interface: @code{default}, @code{compat}, and
+@code{extracompat}.
+@item Filters and names
+Rules to hide objects, and templates to customize how streams, endpoints, and
+devices are named, based on their PipeWire properties.
+@end table
+
+@node Reporting Bugs
+@chapter Reporting Bugs
+
+wiremix is maintained by Mohamed Hammad
+(@email{Mohamed.Hammad@@SpacecraftSoftware.org}) under the Spacecraft Software
+umbrella. See @url{https://Wiremix.SpacecraftSoftware.org/}.
+
+For security-sensitive issues, do not open a public report; email the
+maintainer. See the @file{CONTRIBUTING.md} file in the source repository for
+contribution guidelines.
+
+@bye

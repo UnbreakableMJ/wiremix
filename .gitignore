@@ -1,2 +1,11 @@
+# SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
 /target/
 /.direnv/
+
+# Generated documentation (built from doc/wiremix.texi via `make`)
+/doc/*.info
+/doc/*.html
+/doc/*.pdf
+/doc/.t2p/

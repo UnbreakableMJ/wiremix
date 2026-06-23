@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 //! PipeWire controls which can be executed by wirehose.
 
 use std::sync::{atomic::AtomicBool, Arc};

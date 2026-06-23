@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 //! Implementation for [`Keybinding`](`crate::config::Keybinding`). Defines
 //! default bindings and handles merging of configured bindings with defaults.
 

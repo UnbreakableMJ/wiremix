@@ -1,12 +1,25 @@
 # wiremix
 
-wiremix is a simple TUI audio mixer for PipeWire. You can use it to adjust
+wiremix is a simple audio mixer for PipeWire. You can use it to adjust
 volumes, route audio between devices and applications, and configure audio
 device settings like input/output ports and profiles.
+
+It is **dual-mode**: an interactive TUI for humans and a machine-readable,
+agent-native CLI (`--json`, noun-verb subcommands, `schema`/`describe`) for
+automation and AI agents. Run `wiremix` for the TUI; run e.g.
+`wiremix node list --json` for structured output.
 
 wiremix's interface is more or less a clone of the wonderful
 [ncpamixer](https://github.com/fulhax/ncpamixer) which was itself inspired by
 pavucontrol, so users of either should find it familiar.
+
+> **Spacecraft Software fork.** This is a fork of the upstream
+> [wiremix](https://github.com/tsowell/wiremix) by Thomas Sowell (dual
+> `MIT OR Apache-2.0`), maintained under the Spacecraft Software umbrella and
+> relicensed `GPL-3.0-or-later`. The combined work conforms to The Steelbore
+> Standard and the Spacecraft Software CLI Standard. See
+> [`CREDITS.md`](./CREDITS.md) for upstream attribution and
+> [`NOTICE.md`](./NOTICE.md) for posture.
 
 Issues and pull requests are welcome!
 
@@ -220,11 +233,14 @@ similar to character sets in that you can define your own themes and switch
 between them with the `theme` configuration option or the `-t`/`--theme`
 command-line arguments.
 
-There are three built-in themes:
+There are four built-in themes:
 
 1. `default` is the default theme.
 2. `nocolor` uses no color, only attributes.
 3. `plain` uses only the default style - no colors or attributes.
+4. `steelbore` is the Spacecraft Software house theme (Standard §11): the Void
+   Navy / Molten Amber palette over a Void Navy background. Opt in with `theme =
+   "steelbore"` or `-t steelbore`.
 
 The configuration file allows for both modifying built-in themes and creating
 custom ones.
@@ -308,3 +324,44 @@ types = [ "stream" ]
 matches = [ { "node.name" = "mpv" } ]
 templates = [ "{node:media.name}" ]
 ```
+
+## Machine-readable CLI
+
+In addition to the TUI, wiremix exposes a noun-verb CLI for scripts and AI
+agents. Output mode is auto-detected (TTY → human; piped, `--json`, or
+`AI_AGENT`/`AGENT`/`CI` set → JSON), or forced with `--format
+json|jsonl|yaml|csv|explore` (`explore` is the TUI). stdout carries data only;
+diagnostics and structured errors go to stderr; timestamps are ISO 8601 UTC.
+
+```sh
+wiremix node list --json            # all playback/recording/device nodes
+wiremix node get <id> --json        # one node, with volumes/mute/peaks
+wiremix node set-volume <id> 50     # set volume to 50%
+wiremix node mute <id> --toggle
+wiremix device list --json
+wiremix server info --json          # default sink/source, counts, remote
+wiremix schema                      # JSON Schema of the whole CLI
+wiremix describe                    # capability manifest
+```
+
+Every write command accepts `--dry-run`; every command accepts the standard
+global flags (`--fields`, `--color`, `--quiet`, `--yes`, …). See the manual
+(`doc/wiremix.texi`) and `wiremix schema` for the full contract.
+
+## Project Posture
+
+wiremix is a **personal hobby project** under the Spacecraft Software umbrella
+(Standard §5.1) — developed at hobby pace, provided **AS IS** with no warranty
+and no liability, and **not** declared general-use. Contributions are welcome
+but accepted at the maintainer's sole discretion; forking under
+GPL-3.0-or-later is encouraged. See [`NOTICE.md`](./NOTICE.md) and
+[`CONTRIBUTING.md`](./CONTRIBUTING.md).
+
+## Maintainer
+
+Maintained by Mohamed Hammad &lt;Mohamed.Hammad@SpacecraftSoftware.org&gt;
+Copyright (C) 2026 Mohamed Hammad & Spacecraft Software — License: GPL-3.0-or-later
+<https://Wiremix.SpacecraftSoftware.org/>
+
+Forked from upstream [wiremix](https://github.com/tsowell/wiremix) by Thomas
+Sowell; see [`CREDITS.md`](./CREDITS.md).

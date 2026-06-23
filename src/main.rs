@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
+// SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use std::io::stdout;
 use std::sync::{mpsc, Arc};
 
@@ -27,6 +31,28 @@ fn main() -> Result<()> {
     let config_path = opt.config.as_deref().or(config_default_path.as_deref());
 
     let config = Config::try_new(config_path, &opt)?;
+
+    // One-shot machine CLI: a subcommand was given. Runs, prints, and exits
+    // without ever starting the TUI. The connection is dropped inside `run`.
+    if let Some(command) = opt.command {
+        let code = wiremix::cli::run(command, &opt.global, config);
+        std::process::exit(code.code());
+    }
+
+    // No subcommand: the interactive TUI. Don't trap an agent in a render loop
+    // (CLI Standard §5) — detect agent environments and bail with a pointer.
+    if wiremix::cli::output::agent_env() {
+        eprintln!(
+            "{}",
+            serde_json::json!({
+                "notice": "wiremix runs an interactive TUI when given no \
+                           subcommand, but an agent environment was detected. \
+                           Run a subcommand (e.g. `wiremix node list --json`) \
+                           or `wiremix --help`.",
+            })
+        );
+        return Ok(());
+    }
 
     // Handler for events from PipeWire - just wrap them and put them on the
     // event channel.

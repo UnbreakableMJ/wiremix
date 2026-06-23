@@ -1,9 +1,23 @@
+// SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
+// SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use std::collections::HashMap;
 
 use ratatui::style::{Color, Modifier, Style};
 use serde::{de::Error, Deserialize};
 
 use crate::config::Theme;
+
+// The `Steelbore` theme palette (Spacecraft Software Standard §11), expressed
+// as the six canonical tokens. These hex values are fixed by the Standard and
+// must not be changed; Void Navy is the mandatory background for every surface.
+const VOID_NAVY: Color = Color::Rgb(0, 0, 39); // #000027 background / canvas
+const MOLTEN_AMBER: Color = Color::Rgb(217, 142, 50); // #D98E32 text / readout
+const STEEL_BLUE: Color = Color::Rgb(75, 126, 176); // #4B7EB0 accent / structure
+const RADIUM_GREEN: Color = Color::Rgb(80, 250, 123); // #50FA7B success / safe
+const RED_OXIDE: Color = Color::Rgb(255, 92, 92); // #FF5C5C warning / error
+const LIQUID_COOLANT: Color = Color::Rgb(139, 233, 253); // #8BE9FD info / links
 
 // This is what actually gets parsed from the config.
 #[derive(Deserialize, Debug)]
@@ -75,6 +89,7 @@ impl TryFrom<ThemeOverlay> for Theme {
             Some("default") => Theme::default(),
             Some("nocolor") => Theme::nocolor(),
             Some("plain") => Theme::plain(),
+            Some("steelbore") => Theme::steelbore(),
             Some(inherit) => {
                 anyhow::bail!("'{}' is not a built-in theme", inherit)
             }
@@ -163,7 +178,48 @@ impl Theme {
             (String::from("default"), Theme::default()),
             (String::from("nocolor"), Theme::nocolor()),
             (String::from("plain"), Theme::plain()),
+            (String::from("steelbore"), Theme::steelbore()),
         ])
+    }
+
+    /// The `Steelbore` theme: the Spacecraft Software house palette (Standard
+    /// §11) over a mandatory Void Navy background. Opt in with `theme =
+    /// "steelbore"` or `-t steelbore`.
+    fn steelbore() -> Self {
+        // Every token shares the Void Navy canvas and Molten Amber text; the
+        // accent/status tokens override only the foreground.
+        let base = Style::default().fg(MOLTEN_AMBER).bg(VOID_NAVY);
+        Self {
+            default_device: base,
+            default_stream: base,
+            selector: base.fg(STEEL_BLUE),
+            tab: base,
+            tab_selected: base.fg(STEEL_BLUE).add_modifier(Modifier::BOLD),
+            tab_marker: base.fg(STEEL_BLUE),
+            list_more: base.fg(STEEL_BLUE),
+            node_title: base,
+            node_target: base.fg(LIQUID_COOLANT),
+            volume: base,
+            volume_empty: base.fg(STEEL_BLUE),
+            volume_filled: base.fg(MOLTEN_AMBER),
+            meter_inactive: base.fg(STEEL_BLUE),
+            meter_active: base.fg(RADIUM_GREEN),
+            meter_overload: base.fg(RED_OXIDE),
+            meter_center_inactive: base.fg(STEEL_BLUE),
+            meter_center_active: base.fg(RADIUM_GREEN),
+            config_device: base,
+            config_profile: base.fg(LIQUID_COOLANT),
+            dropdown_icon: base.fg(STEEL_BLUE),
+            dropdown_border: base.fg(STEEL_BLUE),
+            dropdown_item: base,
+            dropdown_selected: base
+                .fg(STEEL_BLUE)
+                .add_modifier(Modifier::REVERSED),
+            dropdown_more: base.fg(STEEL_BLUE),
+            help_border: base.fg(STEEL_BLUE),
+            help_item: base,
+            help_more: base.fg(STEEL_BLUE),
+        }
     }
 
     fn nocolor() -> Self {
@@ -256,6 +312,9 @@ impl Theme {
         }
         if !merged.contains_key("plain") {
             merged.insert(String::from("plain"), Theme::plain());
+        }
+        if !merged.contains_key("steelbore") {
+            merged.insert(String::from("steelbore"), Theme::steelbore());
         }
         Ok(merged)
     }

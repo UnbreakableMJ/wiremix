@@ -1,5 +1,10 @@
+// SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
+// SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 pub mod app;
 pub mod atomic_f32;
+pub mod cli;
 pub mod config;
 pub mod device_kind;
 pub mod device_widget;

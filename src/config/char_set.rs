@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 //! Implementation for [`CharSet`](`crate::config::CharSet`). Defines default
 //! character sets and handles merging of configured char sets with defaults.
 

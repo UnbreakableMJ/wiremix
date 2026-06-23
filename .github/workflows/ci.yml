@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
+# SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 name: ci
 on:
   pull_request:
@@ -26,6 +30,12 @@ jobs:
         run: cargo test --locked --all-features --all-targets
       - name: Run doc tests
         run: cargo test --locked --all-features --doc
+  reuse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: REUSE / SPDX compliance
+        uses: fsfe/reuse-action@v5
   nixfmt:
     runs-on: ubuntu-latest
     steps:

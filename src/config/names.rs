@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 //! Implementation for [`Names`](`crate::config::Names`). Defines default name
 //! templates and handles resolving templates into strings.
 
