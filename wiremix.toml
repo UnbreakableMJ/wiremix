@@ -31,9 +31,10 @@ peaks = "auto"
 char_set = "default"
 
 # Theme to use (see Themes section)
-# Built-in themes: "default", "nocolor", "plain", "steelbore"
-# ("steelbore" is the Spacecraft Software house theme, defined in Appendix A)
-theme = "default"
+# Built-in themes: "steelbore" (default), "default", "nocolor", "plain"
+# ("steelbore" is the Spacecraft Software house theme, defined in Appendix A;
+#  "default" is the upstream terminal-default look)
+theme = "steelbore"
 
 # Initial tab
 tab = "playback"
@@ -127,6 +128,11 @@ keybindings = [
  { key = { Char = "0" }, action = { SetAbsoluteVolume = 1.00 } },
  # Open the help menu
  { key = { Char = "?" }, action = "Help" },
+ # Enter incremental search/filter mode (type to filter, Esc clears)
+ { key = { Char = "/" }, action = "Search" },
+ # Shift stereo balance left/right
+ { key = { Char = "," }, action = { SetRelativeBalance = -0.05 } },
+ { key = { Char = "." }, action = { SetRelativeBalance = 0.05 } },
  # There are two actions which don't have default bindings:
  # 1. "Nothing": Do nothing - can effectively delete a default keybinding
  # 2. { SelectTab = N }: Open the Nth tab

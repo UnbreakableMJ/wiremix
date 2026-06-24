@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 //! A Ratatui widget representing a single PipeWire node in an object list.
 
@@ -381,16 +382,28 @@ impl StatefulWidget for VolumeWidget<'_> {
 
         let max_volume = self.config.max_volume_percent / 100.0;
 
-        let layout = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
+        // Reserve a small column for the balance readout on stereo nodes.
+        let stereo = self.node.volumes.len() == 2;
+        let constraints: Vec<Constraint> = if stereo {
+            vec![
                 Constraint::Length(5), // volume_label
                 Constraint::Min(0),    // volume_bar
-            ])
+                Constraint::Length(4), // balance
+            ]
+        } else {
+            vec![
+                Constraint::Length(5), // volume_label
+                Constraint::Min(0),    // volume_bar
+            ]
+        };
+        let layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(constraints)
             .spacing(1)
             .split(area);
         let volume_label = layout[0];
         let volume_bar = layout[1];
+        let balance_area = stereo.then(|| layout[2]);
 
         let volumes = &self.node.volumes;
         if !volumes.is_empty() {
@@ -421,6 +434,30 @@ impl StatefulWidget for VolumeWidget<'_> {
             ])
             .render(volume_bar, buf);
         }
+        // Stereo balance readout (L<n> / R<n> / centered dot).
+        if let Some(balance_area) = balance_area {
+            let left = volumes[0].cbrt();
+            let right = volumes[1].cbrt();
+            let level = left.max(right);
+            let balance = if level <= 0.0 {
+                0.0
+            } else if left >= right {
+                -(1.0 - right / left)
+            } else {
+                1.0 - left / right
+            };
+            let text = if balance.abs() < 0.01 {
+                String::from("·")
+            } else if balance < 0.0 {
+                format!("L{}", (-balance * 100.0).round() as u32)
+            } else {
+                format!("R{}", (balance * 100.0).round() as u32)
+            };
+            Line::from(Span::styled(text, self.config.theme.volume))
+                .alignment(Alignment::Right)
+                .render(balance_area, buf);
+        }
+
         if self.node.mute {
             Line::from("muted").render(volume_label, buf);
         }

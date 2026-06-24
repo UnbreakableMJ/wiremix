@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Mixer configuration.
 
@@ -258,7 +259,9 @@ fn default_char_set_name() -> String {
 }
 
 fn default_theme_name() -> String {
-    String::from("default")
+    // The Spacecraft Software house theme (Standard §11). The upstream
+    // terminal-default look remains available with `theme = "default"`.
+    String::from("steelbore")
 }
 
 fn default_max_volume_percent() -> Option<f32> {

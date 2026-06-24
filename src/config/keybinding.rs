@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Implementation for [`Keybinding`](`crate::config::Keybinding`). Defines
 //! default bindings and handles merging of configured bindings with defaults.
@@ -51,6 +52,9 @@ impl Keybinding {
             (event(KeyCode::Char('9')), Action::SetAbsoluteVolume(0.90)),
             (event(KeyCode::Char('0')), Action::SetAbsoluteVolume(1.00)),
             (event(KeyCode::Char('?')), Action::Help),
+            (event(KeyCode::Char('/')), Action::Search),
+            (event(KeyCode::Char(',')), Action::SetRelativeBalance(-0.05)),
+            (event(KeyCode::Char('.')), Action::SetRelativeBalance(0.05)),
         ])
     }
 

@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 //! A Ratatui widget for an interactable list of PipeWire objects.
 
@@ -171,6 +172,16 @@ impl ObjectList {
                 VolumeAdjustment::Relative(volume),
                 max,
             );
+        }
+        false
+    }
+
+    pub fn adjust_balance(&mut self, view: &view::View, delta: f32) -> bool {
+        if matches!(self.list_kind, ListKind::Device) {
+            return false;
+        }
+        if let Some(node_id) = self.selected {
+            return view.adjust_balance(node_id, delta);
         }
         false
     }

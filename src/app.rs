@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Main rendering and event processing for the application.
 
@@ -25,8 +26,8 @@ use ratatui::{
 };
 
 use crossterm::event::{
-    Event as CrosstermEvent, KeyEvent, KeyEventKind, MouseButton, MouseEvent,
-    MouseEventKind,
+    Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers,
+    MouseButton, MouseEvent, MouseEventKind,
 };
 
 use serde::Deserialize;
@@ -49,11 +50,13 @@ use crate::wirehose::{state::State, ObjectId};
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, PartialOrd)]
 pub enum Action {
     Help,
+    Search,
     Exit,
     MoveUp,
     MoveDown,
     ToggleMute,
     SetRelativeVolume(f32),
+    SetRelativeBalance(f32),
     SetDefault,
     ActivateDropdown,
     CloseDropdown,
@@ -90,8 +93,16 @@ impl std::fmt::Display for Action {
             Action::SetRelativeVolume(vol) => {
                 Self::format_relative_volume(f, *vol)
             }
+            Action::SetRelativeBalance(delta) => {
+                if *delta < 0.0 {
+                    write!(f, "Shift balance left")
+                } else {
+                    write!(f, "Shift balance right")
+                }
+            }
             Action::SetDefault => write!(f, "Set default"),
             Action::Help => write!(f, "Show/hide help"),
+            Action::Search => write!(f, "Search/filter list"),
             Action::Exit => write!(f, "Exit wiremix"),
             Action::Nothing => write!(f, "Nothing"),
         }
@@ -217,6 +228,10 @@ pub struct App<'a> {
     capturable_objects: HashSet<ObjectId>,
     /// Objects currently being captured.
     capturing_objects: HashSet<ObjectId>,
+    /// Active search/filter query (None when no filter is applied).
+    search: Option<String>,
+    /// Whether keystrokes are currently captured into the search query.
+    search_active: bool,
 }
 
 macro_rules! current_list {
@@ -264,7 +279,36 @@ impl<'a> App<'a> {
             peak_processor: Arc::new(peak_processor),
             capturable_objects: HashSet::new(),
             capturing_objects: HashSet::new(),
+            search: None,
+            search_active: false,
         }
+    }
+
+    /// Enter search/filter input mode, resuming any existing query.
+    fn enter_search(&mut self) {
+        self.search_active = true;
+        self.search.get_or_insert_with(String::new);
+    }
+
+    /// Append a character to the search query and re-filter.
+    fn push_search(&mut self, c: char) {
+        self.search.get_or_insert_with(String::new).push(c);
+        self.state_dirty = true;
+    }
+
+    /// Delete the last character of the search query and re-filter.
+    fn pop_search(&mut self) {
+        if let Some(query) = self.search.as_mut() {
+            query.pop();
+        }
+        self.state_dirty = true;
+    }
+
+    /// Clear the search filter entirely and leave input mode.
+    fn clear_search(&mut self) {
+        self.search = None;
+        self.search_active = false;
+        self.state_dirty = true;
     }
 
     pub fn run(mut self, terminal: &mut DefaultTerminal) -> Result<()> {
@@ -290,6 +334,11 @@ impl<'a> App<'a> {
                     &self.config.names,
                     &self.config.filters,
                 );
+                if let Some(query) = &self.search {
+                    if !query.is_empty() {
+                        self.view.retain_matching(query);
+                    }
+                }
             }
             self.state_dirty = false;
 
@@ -329,6 +378,7 @@ impl<'a> App<'a> {
             current_tab_index: self.current_tab_index,
             view: &self.view,
             config: &self.config,
+            search: self.search.as_deref(),
         };
         let mut widget_state = AppWidgetState {
             mouse_areas: &mut self.mouse_areas,
@@ -539,6 +589,34 @@ impl Handle for KeyEvent {
             return Ok(false);
         }
 
+        // While the search prompt is capturing input, printable keys edit the
+        // query; navigation keys (arrows, etc.) fall through to keybindings.
+        if app.search_active {
+            match self.code {
+                KeyCode::Char(c)
+                    if !self.modifiers.intersects(
+                        KeyModifiers::CONTROL | KeyModifiers::ALT,
+                    ) =>
+                {
+                    app.push_search(c);
+                    return Ok(true);
+                }
+                KeyCode::Backspace => {
+                    app.pop_search();
+                    return Ok(true);
+                }
+                KeyCode::Esc => {
+                    app.clear_search();
+                    return Ok(true);
+                }
+                KeyCode::Enter => {
+                    app.search_active = false;
+                    return Ok(true);
+                }
+                _ => {}
+            }
+        }
+
         if let Some(&action) = app.config.keybindings.get(&self) {
             return action.handle(app);
         }
@@ -629,6 +707,9 @@ impl Handle for Action {
                 return Ok(current_list!(app)
                     .set_relative_volume(&app.view, volume, max));
             }
+            Action::SetRelativeBalance(delta) => {
+                return Ok(current_list!(app).adjust_balance(&app.view, delta));
+            }
             Action::SetDefault => {
                 current_list!(app).set_default(&app.view);
             }
@@ -638,6 +719,10 @@ impl Handle for Action {
             Action::Nothing => {
                 // Did nothing
                 return Ok(false);
+            }
+            Action::Search => {
+                // Enter incremental search/filter input mode.
+                app.enter_search();
             }
             Action::Help => {
                 // Activate the help menu
@@ -735,6 +820,8 @@ pub struct AppWidget<'a, 'b> {
     current_tab_index: usize,
     view: &'a View<'b>,
     config: &'a Config,
+    /// Active search query to show on the menu row, if filtering.
+    search: Option<&'a str>,
 }
 
 pub struct AppWidgetState<'a> {
@@ -757,43 +844,56 @@ impl<'a> StatefulWidget for AppWidget<'a, '_> {
         let list_area = layout[0];
         let menu_area = layout[1];
 
-        let constraints: Vec<_> = state
-            .tabs
-            .iter()
-            .map(|tab| Constraint::Length(tab.title.len() as u16 + 2))
-            .collect();
+        // While filtering, the menu row shows the search prompt instead of the
+        // tab bar; press Esc to clear the filter and restore the tabs.
+        if let Some(query) = self.search {
+            let prompt = Line::from(vec![
+                Span::styled("/", self.config.theme.tab_marker),
+                Span::styled(query, self.config.theme.tab_selected),
+            ]);
+            prompt.render(menu_area, buf);
+        } else {
+            let constraints: Vec<_> = state
+                .tabs
+                .iter()
+                .map(|tab| Constraint::Length(tab.title.len() as u16 + 2))
+                .collect();
 
-        let menu_areas = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(constraints)
-            .split(menu_area);
+            let menu_areas = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints(constraints)
+                .split(menu_area);
 
-        for (i, tab) in state.tabs.iter().enumerate() {
-            let title_line = if i == self.current_tab_index {
-                Line::from(vec![
-                    Span::styled(
-                        &self.config.char_set.tab_marker_left,
-                        self.config.theme.tab_marker,
-                    ),
-                    Span::styled(&tab.title, self.config.theme.tab_selected),
-                    Span::styled(
-                        &self.config.char_set.tab_marker_right,
-                        self.config.theme.tab_marker,
-                    ),
-                ])
-            } else {
-                Line::from(Span::styled(
-                    format!(" {} ", tab.title),
-                    self.config.theme.tab,
-                ))
-            };
-            title_line.render(menu_areas[i], buf);
+            for (i, tab) in state.tabs.iter().enumerate() {
+                let title_line = if i == self.current_tab_index {
+                    Line::from(vec![
+                        Span::styled(
+                            &self.config.char_set.tab_marker_left,
+                            self.config.theme.tab_marker,
+                        ),
+                        Span::styled(
+                            &tab.title,
+                            self.config.theme.tab_selected,
+                        ),
+                        Span::styled(
+                            &self.config.char_set.tab_marker_right,
+                            self.config.theme.tab_marker,
+                        ),
+                    ])
+                } else {
+                    Line::from(Span::styled(
+                        format!(" {} ", tab.title),
+                        self.config.theme.tab,
+                    ))
+                };
+                title_line.render(menu_areas[i], buf);
 
-            state.mouse_areas.push((
-                menu_areas[i],
-                smallvec![MouseEventKind::Down(MouseButton::Left)],
-                smallvec![Action::SelectTab(i)],
-            ));
+                state.mouse_areas.push((
+                    menu_areas[i],
+                    smallvec![MouseEventKind::Down(MouseButton::Left)],
+                    smallvec![Action::SelectTab(i)],
+                ));
+            }
         }
 
         let mut widget = ObjectListWidget {

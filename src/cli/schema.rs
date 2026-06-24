@@ -28,6 +28,29 @@ struct Spec {
     example: &'static str,
 }
 
+const ID_PARAM: Param = Param {
+    name: "id",
+    ty: "integer",
+    required: false,
+    description: "PipeWire object id (provide id or --name).",
+};
+const NAME_PARAM: Param = Param {
+    name: "name",
+    ty: "string",
+    required: false,
+    description: "Name substring, or @DEFAULT_SINK@ / @DEFAULT_SOURCE@ \
+                  (provide id or --name).",
+};
+const TARGET_PARAMS: &[Param] = &[ID_PARAM, NAME_PARAM];
+
+const DEVICE_NAME_PARAM: Param = Param {
+    name: "name",
+    ty: "string",
+    required: false,
+    description: "Device title substring (provide id or --name).",
+};
+const DEVICE_TARGET_PARAMS: &[Param] = &[ID_PARAM, DEVICE_NAME_PARAM];
+
 const COMMANDS: &[Spec] = &[
     Spec {
         name: "node list",
@@ -40,45 +63,50 @@ const COMMANDS: &[Spec] = &[
         name: "node get",
         summary: "Show one node: volumes, mute, default flags, target.",
         kind: "read",
-        params: &[Param {
-            name: "id",
-            ty: "integer",
-            required: true,
-            description: "PipeWire object id (see `node list`).",
-        }],
+        params: TARGET_PARAMS,
         example: "wiremix node get 42 --json",
     },
     Spec {
         name: "node set-volume",
-        summary: "Set a node's volume (percent, applied to all channels).",
+        summary: "Set a node's volume; one percentage (all channels) or one \
+                  per channel.",
         kind: "write",
         params: &[
-            Param {
-                name: "id",
-                ty: "integer",
-                required: true,
-                description: "PipeWire object id.",
-            },
+            ID_PARAM,
+            NAME_PARAM,
             Param {
                 name: "percent",
                 ty: "number",
                 required: true,
-                description: "Target volume as a percentage (100 = unity).",
+                description:
+                    "One percentage (100 = unity), or one per channel.",
             },
         ],
         example: "wiremix node set-volume 42 50",
+    },
+    Spec {
+        name: "node balance",
+        summary: "Set a stereo node's left/right balance.",
+        kind: "write",
+        params: &[
+            ID_PARAM,
+            NAME_PARAM,
+            Param {
+                name: "balance",
+                ty: "number",
+                required: true,
+                description: "-1.0 (left) .. 0 (center) .. 1.0 (right).",
+            },
+        ],
+        example: "wiremix node balance 42 -0.3",
     },
     Spec {
         name: "node mute",
         summary: "Mute, unmute, or toggle a node (default: toggle).",
         kind: "write",
         params: &[
-            Param {
-                name: "id",
-                ty: "integer",
-                required: true,
-                description: "PipeWire object id.",
-            },
+            ID_PARAM,
+            NAME_PARAM,
             Param {
                 name: "on",
                 ty: "boolean",
@@ -102,14 +130,9 @@ const COMMANDS: &[Spec] = &[
     },
     Spec {
         name: "node set-default",
-        summary: "Set a node as the default sink or source.",
+        summary: "Set a sink/source node as the default.",
         kind: "write",
-        params: &[Param {
-            name: "id",
-            ty: "integer",
-            required: true,
-            description: "PipeWire object id of a sink or source node.",
-        }],
+        params: TARGET_PARAMS,
         example: "wiremix node set-default 42",
     },
     Spec {
@@ -123,12 +146,7 @@ const COMMANDS: &[Spec] = &[
         name: "device get",
         summary: "Show one device: active profile and available profiles.",
         kind: "read",
-        params: &[Param {
-            name: "id",
-            ty: "integer",
-            required: true,
-            description: "PipeWire object id (see `device list`).",
-        }],
+        params: DEVICE_TARGET_PARAMS,
         example: "wiremix device get 50 --json",
     },
     Spec {
@@ -136,12 +154,8 @@ const COMMANDS: &[Spec] = &[
         summary: "Switch a device to a profile by index.",
         kind: "write",
         params: &[
-            Param {
-                name: "id",
-                ty: "integer",
-                required: true,
-                description: "PipeWire object id.",
-            },
+            ID_PARAM,
+            DEVICE_NAME_PARAM,
             Param {
                 name: "profile",
                 ty: "integer",

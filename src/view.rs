@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2025-2026 Thomas Sowell <tom@ldtlb.com>
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 //! View representing PipeWire state in a convenient format for rendering.
 
 use itertools::Itertools;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::AtomicBool;
 
 use std::sync::Arc;
@@ -784,6 +785,76 @@ impl<'a> View<'a> {
             ListKind::Node(NodeKind::All) => &self.nodes_all,
             ListKind::Device => &self.devices_all,
         }
+    }
+
+    /// Restrict the displayed object lists to those whose name/title contains
+    /// `query` (case-insensitive). Used by the TUI search/filter mode. An empty
+    /// query matches everything. Only the ordered display lists are pruned; the
+    /// underlying `nodes`/`devices` maps are left intact.
+    pub fn retain_matching(&mut self, query: &str) {
+        let needle = query.to_lowercase();
+        let keep_nodes: HashSet<ObjectId> = self
+            .nodes
+            .iter()
+            .filter(|(_, node)| {
+                node.title.to_lowercase().contains(&needle)
+                    || node.name.to_lowercase().contains(&needle)
+            })
+            .map(|(id, _)| *id)
+            .collect();
+        let keep_devices: HashSet<ObjectId> = self
+            .devices
+            .iter()
+            .filter(|(_, device)| device.title.to_lowercase().contains(&needle))
+            .map(|(id, _)| *id)
+            .collect();
+
+        self.nodes_all.retain(|id| keep_nodes.contains(id));
+        self.nodes_playback.retain(|id| keep_nodes.contains(id));
+        self.nodes_recording.retain(|id| keep_nodes.contains(id));
+        self.nodes_output.retain(|id| keep_nodes.contains(id));
+        self.nodes_input.retain(|id| keep_nodes.contains(id));
+        self.devices_all.retain(|id| keep_devices.contains(id));
+    }
+
+    /// Adjust a stereo node's left/right balance by `delta` (negative = left,
+    /// positive = right), preserving the loudest channel's level. Returns true
+    /// if a change was issued; a no-op for non-stereo or silent nodes.
+    pub fn adjust_balance(&self, node_id: ObjectId, delta: f32) -> bool {
+        let Some(node) = self.nodes.get(&node_id) else {
+            return false;
+        };
+        if node.volumes.len() != 2 {
+            return false;
+        }
+        let left = node.volumes[0].cbrt();
+        let right = node.volumes[1].cbrt();
+        let level = left.max(right);
+        if level <= 0.0 {
+            return false;
+        }
+        let current = if left >= right {
+            -(1.0 - right / level)
+        } else {
+            1.0 - left / level
+        };
+        let balance = (current + delta).clamp(-1.0, 1.0);
+        let new_left = level * if balance > 0.0 { 1.0 - balance } else { 1.0 };
+        let new_right = level * if balance < 0.0 { 1.0 + balance } else { 1.0 };
+        let volumes =
+            vec![new_left.max(0.0).powi(3), new_right.max(0.0).powi(3)];
+
+        if let Some((device_id, route_index, route_device)) = node.device_info {
+            self.wirehose.device_volumes(
+                device_id,
+                route_index,
+                route_device,
+                volumes,
+            );
+        } else {
+            self.wirehose.node_volumes(node_id, volumes);
+        }
+        true
     }
 
     /// Gets all the nodes without filtering.

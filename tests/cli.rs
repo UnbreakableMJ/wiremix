@@ -71,7 +71,7 @@ fn schema_is_draft_2020_12() {
         schema["$schema"],
         "https://json-schema.org/draft/2020-12/schema"
     );
-    assert_eq!(schema["oneOf"].as_array().expect("oneOf array").len(), 14);
+    assert_eq!(schema["oneOf"].as_array().expect("oneOf array").len(), 15);
 }
 
 #[test]
@@ -83,6 +83,6 @@ fn describe_lists_every_command() {
             .as_array()
             .expect("commands array")
             .len(),
-        14
+        15
     );
 }

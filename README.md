@@ -139,6 +139,8 @@ less-intuitive mouse controls are:
 | 9             | Set volume 90%          |
 | 0             | Set volume 100%         |
 | ?             | Toggle help screen      |
+| /             | Search/filter the list  |
+| , / .         | Shift balance left/right|
 
 ## Configuration
 
@@ -172,7 +174,7 @@ the configuration file.
 mouse = true
 peaks = "auto"
 char_set = "default"
-theme = "default"
+theme = "steelbore"
 tab = "playback"
 tabs = [ "playback", "recording", "output", "input", "configuration" ]
 max_volume_percent = 150.0
@@ -235,12 +237,13 @@ command-line arguments.
 
 There are four built-in themes:
 
-1. `default` is the default theme.
-2. `nocolor` uses no color, only attributes.
-3. `plain` uses only the default style - no colors or attributes.
-4. `steelbore` is the Spacecraft Software house theme (Standard §11): the Void
-   Navy / Molten Amber palette over a Void Navy background. Opt in with `theme =
-   "steelbore"` or `-t steelbore`.
+1. `steelbore` is the default theme: the Spacecraft Software house theme
+   (Standard §11) — the Void Navy / Molten Amber palette over a Void Navy
+   background.
+2. `default` is the upstream theme, using your terminal's default colors. Select
+   it with `theme = "default"` or `-t default`.
+3. `nocolor` uses no color, only attributes.
+4. `plain` uses only the default style - no colors or attributes.
 
 The configuration file allows for both modifying built-in themes and creating
 custom ones.
