@@ -27,7 +27,14 @@ include = [
     "CREDITS.md",
     "CHANGELOG.md",
     "wiremix.toml",
+    "ui/**/*",
+    "build.rs",
 ]
+
+[[bin]]
+name = "wiremix-gui"
+path = "src/gui/main.rs"
+required-features = ["gui"]
 
 [dependencies]
 anyhow = "1.0.95"
@@ -50,6 +57,13 @@ scopeguard = "1.2.0"
 serde = { version = "1.0.218", features = ["derive"] }
 serde_json = "1.0.137"
 serde_with = "3.12.0"
+slint = { version = "1.8", optional = true, default-features = false, features = [
+    "compat-1-2",
+    "std",
+    "backend-winit",
+    "renderer-software",
+    "accessibility",
+] }
 smallvec = "1.14.0"
 toml = "1.0.3"
 tracing = { version = "0.1.41", optional = true }
@@ -59,8 +73,12 @@ tracing-subscriber = { version = "0.3.20", features = ["env-filter"], optional =
 [dev-dependencies]
 paste = "1.0.15"
 
+[build-dependencies]
+slint-build = { version = "1.8", optional = true }
+
 [features]
 trace = ["dep:tracing", "dep:tracing-error", "dep:tracing-subscriber"]
+gui = ["dep:slint", "dep:slint-build"]
 
 [profile.release]
 codegen-units = 1

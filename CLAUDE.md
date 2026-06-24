@@ -6,9 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 wiremix is a **dual-mode** PipeWire mixer written in Rust: an interactive
 ratatui **TUI** (modeled on `ncpamixer`/`pavucontrol`) plus a machine-readable,
-agent-native **CLI**. It is a **Spacecraft Software umbrella project**
-(`GPL-3.0-or-later`) — a fork of upstream `wiremix` by Thomas Sowell (originally
-`MIT OR Apache-2.0`, <https://github.com/tsowell/wiremix>; see `CREDITS.md`).
+agent-native **CLI**. There is also an **optional Slint desktop GUI**
+(`wiremix-gui`, behind the `gui` cargo feature; see "The desktop GUI" below) —
+a third frontend over the same core, off by default. It is a **Spacecraft
+Software umbrella project** (`GPL-3.0-or-later`) — a fork of upstream `wiremix`
+by Thomas Sowell (originally `MIT OR Apache-2.0`,
+<https://github.com/tsowell/wiremix>; see `CREDITS.md`).
 
 **The Steelbore Standard, the CLI Standard (SFRS), and the Agentic CLI layer
 apply.** Load the `spacecraft-standard`, `spacecraft-cli-standard`,
@@ -25,12 +28,15 @@ deliberately kept (§5.4).
 A C toolchain and PipeWire headers are required (the `pipewire`/`libspa` crates
 use bindgen). **Build inside `nix develop`** — it provides `pkg-config`, the
 PipeWire libs, and the bindgen hook; outside it the build fails at `libspa-sys`.
-MSRV is **1.74.0**.
+MSRV is **1.74.0** for the default TUI/CLI; the optional `gui` feature (Slint)
+needs **Rust ≥ 1.88**, so `--all-features` (below) requires the newer toolchain
+the dev shell ships.
 
 ```sh
 nix develop                  # interactive dev shell (.envrc autoloads via direnv); or prefix one-shot:
 
-nix develop -c cargo build  --locked --all-features --all-targets
+nix develop -c cargo build  --locked --all-features --all-targets   # --all-features includes `gui` (Slint)
+nix develop -c cargo build  --locked --features gui --bin wiremix-gui # just the optional desktop GUI
 nix develop -c cargo test   --locked --all-features --all-targets
 nix develop -c cargo test   --locked --all-features --doc        # doc tests, run separately in CI
 nix develop -c cargo test   <name>                               # single test, e.g. `cargo test volume_limit_at_max`
@@ -168,3 +174,28 @@ This is the project's reason-for-existing contract — see `AGENTS.md` for the
 exact output rules (stdout=data only, JSON envelope, exit codes, ISO 8601 UTC,
 agent-env detection). Unlike the TUI (which ignores PipeWire errors in release),
 the CLI **surfaces** errors with a non-zero exit and a structured stderr object.
+
+### The desktop GUI (`src/gui/` + `ui/`, `gui` feature)
+
+A third frontend, **off by default**. The default `wiremix` build pulls in
+neither Slint nor a graphics stack; the `gui` feature gates an extra binary,
+`wiremix-gui` (`[[bin]] required-features = ["gui"]`), and `build.rs` compiles
+`ui/main.slint` only when the feature is on (`#[cfg(feature = "gui")]`). It is
+built on [Slint](https://slint.dev) with the **software renderer + winit
+backend** (no GPU), so current Slint requires **Rust ≥ 1.88** — hence the dev
+shell tracks a recent nixpkgs; the core TUI/CLI MSRV (1.74) is unchanged.
+
+Like the CLI, it drives the same `wirehose` `Session` + `view::View` core and
+never touches `pipewire`/`libspa` directly. `src/gui/main.rs` spawns a
+`Session`, pumps the `mpsc` event channel from a `slint::Timer` on the UI
+thread, applies `State::update`, and on structural change rebuilds a transient
+`View` and refills the Slint models (`NodeRow`/`DeviceRow`). High-frequency VU
+peaks live in a **separate** `PeakRow` model updated in place each tick, so
+meter refreshes never reset the volume sliders. Controls flow out through Slint
+`Logic` callbacks carrying the **row index** (mapped back to `ObjectId` via the
+lists cached at projection time, so no id round-trips through Slint's 32-bit
+`int`), each running a `View` command method against the live session. Capture
+streams for metering are started/stopped on `CaptureEligibility` events, exactly
+as the TUI does. The TUI (`src/app.rs`) and CLI (`src/cli/`) are left untouched.
+The Steelbore theme (Void Navy / Molten Amber, §11) is centralised in a Slint
+`Theme` global; the `accessibility` Slint feature is enabled.

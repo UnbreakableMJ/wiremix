@@ -1,0 +1,329 @@
+// SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// wiremix GUI — Slint UI. Built only with the `gui` cargo feature.
+//
+// The Rust side (`src/gui/`) keeps the authoritative PipeWire state and a
+// `wiremix::view::View` projection; it fills the `nodes`/`peaks`/`devices`
+// models and routes every control back through `Logic` callbacks, which run
+// `View` command methods against the live `wirehose` session. Callbacks carry
+// the *row index* (and, for dropdowns, the selected option index); Rust maps
+// indices to `ObjectId`s via the lists it cached when it last projected, so no
+// id ever has to round-trip through Slint's 32-bit `int`.
+
+import { Button, Slider, ComboBox, ListView } from "std-widgets.slint";
+
+// One playback/recording/output/input node row of the mixer.
+export struct NodeRow {
+    title: string,
+    subtitle: string,
+    volume: float,        // perceptual percent, 0..150 (cube-root domain)
+    muted: bool,
+    is-default: bool,
+    can-default: bool,    // true on the Output/Input device tabs
+    target-labels: [string],
+    target-index: int,
+    show-target: bool,
+}
+
+// Live peak-meter levels for a node row, updated far more often than the
+// structural `NodeRow`, so it lives in its own model to avoid resetting the
+// volume slider mid-drag.
+export struct PeakRow {
+    left: float,          // 0..1, post-ballistics VU level
+    right: float,         // 0..1, only meaningful when `stereo`
+    stereo: bool,
+    active: bool,         // a capture stream is attached
+}
+
+// One device row on the Configuration tab.
+export struct DeviceRow {
+    title: string,
+    profile-labels: [string],
+    profile-index: int,
+}
+
+// Void Navy / Molten Amber, The Steelbore Standard §11. Centralised so the
+// whole UI is themed from one place.
+export global Theme {
+    out property <color> bg: #000027;            // Void Navy
+    out property <color> surface: #0d0d38;
+    out property <color> surface-alt: #18184f;
+    out property <color> accent: #d98e32;         // Molten Amber
+    out property <color> accent-dim: #7a5220;
+    out property <color> text: #e8e8f2;
+    out property <color> text-dim: #9a9ab4;
+    out property <color> meter-lo: #3ea96b;
+    out property <color> meter-mid: #d98e32;
+    out property <color> meter-hi: #d6453a;
+    out property <length> radius: 8px;
+    out property <length> pad: 10px;
+    out property <length> gap: 8px;
+    out property <length> row-height: 78px;
+    out property <length> font: 14px;
+    out property <length> font-sm: 12px;
+}
+
+// Every user gesture flows out through here; Rust installs the handlers.
+export global Logic {
+    callback set-volume(int, float);   // row index, perceptual percent
+    callback toggle-mute(int);         // row index
+    callback set-default(int);         // row index
+    callback set-target(int, int);     // row index, target option index
+    callback set-profile(int, int);    // device row index, profile option index
+    callback select-tab(int);          // tab index
+}
+
+// A single horizontal level bar filling left-to-right by `level` (0..1).
+component Bar inherits Rectangle {
+    in property <float> level;
+    background: Theme.surface-alt;
+    border-radius: 2px;
+    clip: true;
+    Rectangle {
+        x: 0;
+        y: 0;
+        height: parent.height;
+        width: parent.width * clamp(root.level, 0.0, 1.0);
+        background: @linear-gradient(90deg,
+            Theme.meter-lo 0%, Theme.meter-mid 70%, Theme.meter-hi 100%);
+        border-radius: 2px;
+    }
+}
+
+// Mono (one bar) or stereo (two bars) peak meter for a node.
+component Meter inherits VerticalLayout {
+    in property <PeakRow> peak;
+    spacing: 3px;
+    Bar {
+        level: root.peak.active ? root.peak.left : 0.0;
+        height: root.peak.stereo ? 6px : 9px;
+    }
+    if root.peak.stereo: Bar {
+        level: root.peak.active ? root.peak.right : 0.0;
+        height: 6px;
+    }
+}
+
+// One mixer strip: labels + meter on the left, controls on the right.
+component NodeRowView inherits Rectangle {
+    in property <int> index;
+    in property <NodeRow> node;
+    in property <PeakRow> peak;
+
+    height: Theme.row-height;
+    background: Theme.surface;
+    border-radius: Theme.radius;
+    accessible-role: list-item;
+    accessible-label: root.node.title;
+
+    HorizontalLayout {
+        padding: Theme.pad;
+        spacing: Theme.pad;
+
+        VerticalLayout {
+            horizontal-stretch: 1;
+            spacing: 4px;
+            Text {
+                text: root.node.title;
+                color: Theme.text;
+                font-size: Theme.font;
+                font-weight: 600;
+                overflow: elide;
+            }
+            if root.node.subtitle != "": Text {
+                text: root.node.subtitle;
+                color: Theme.text-dim;
+                font-size: Theme.font-sm;
+                overflow: elide;
+            }
+            Meter {
+                peak: root.peak;
+            }
+        }
+
+        VerticalLayout {
+            width: 240px;
+            spacing: 6px;
+            alignment: center;
+            HorizontalLayout {
+                spacing: Theme.gap;
+                Slider {
+                    horizontal-stretch: 1;
+                    minimum: 0;
+                    maximum: 150;
+                    value: root.node.volume;
+                    changed(v) => {
+                        Logic.set-volume(root.index, v);
+                    }
+                }
+                Text {
+                    width: 44px;
+                    text: round(root.node.volume) + "%";
+                    color: Theme.text;
+                    font-size: Theme.font-sm;
+                    horizontal-alignment: right;
+                    vertical-alignment: center;
+                }
+            }
+            if root.node.show-target: ComboBox {
+                model: root.node.target-labels;
+                current-index: root.node.target-index;
+                selected => {
+                    Logic.set-target(root.index, self.current-index);
+                }
+            }
+        }
+
+        VerticalLayout {
+            width: 110px;
+            spacing: 6px;
+            alignment: center;
+            Button {
+                text: root.node.muted ? "Unmute" : "Mute";
+                checkable: true;
+                checked: root.node.muted;
+                clicked => {
+                    Logic.toggle-mute(root.index);
+                }
+            }
+            if root.node.can-default: Button {
+                text: root.node.is-default ? "★ Default" : "Set Default";
+                enabled: !root.node.is-default;
+                clicked => {
+                    Logic.set-default(root.index);
+                }
+            }
+        }
+    }
+}
+
+// One device strip on the Configuration tab: title + profile selector.
+component DeviceRowView inherits Rectangle {
+    in property <int> index;
+    in property <DeviceRow> device;
+
+    height: 64px;
+    background: Theme.surface;
+    border-radius: Theme.radius;
+    accessible-role: list-item;
+    accessible-label: root.device.title;
+
+    HorizontalLayout {
+        padding: Theme.pad;
+        spacing: Theme.pad;
+        Text {
+            horizontal-stretch: 1;
+            text: root.device.title;
+            color: Theme.text;
+            font-size: Theme.font;
+            font-weight: 600;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+        ComboBox {
+            width: 280px;
+            model: root.device.profile-labels;
+            current-index: root.device.profile-index;
+            selected => {
+                Logic.set-profile(root.index, self.current-index);
+            }
+        }
+    }
+}
+
+export component MainWindow inherits Window {
+    in property <[string]> tab-titles;
+    in property <int> current-tab;
+    in property <[NodeRow]> nodes;
+    in property <[PeakRow]> peaks;
+    in property <[DeviceRow]> devices;
+    in property <bool> is-device-tab;
+    in property <bool> ready;
+    in property <string> empty-text: "No items.";
+
+    title: "wiremix";
+    preferred-width: 880px;
+    preferred-height: 640px;
+    min-width: 560px;
+    min-height: 360px;
+    background: Theme.bg;
+
+    VerticalLayout {
+        padding: Theme.pad;
+        spacing: Theme.gap;
+
+        // Header: wordmark + tab bar.
+        HorizontalLayout {
+            spacing: Theme.gap;
+            vertical-stretch: 0;
+            Text {
+                text: "wiremix";
+                color: Theme.accent;
+                font-size: 20px;
+                font-weight: 800;
+                vertical-alignment: center;
+            }
+            Rectangle { horizontal-stretch: 1; }
+            for t[i] in root.tab-titles: Button {
+                text: t;
+                primary: i == root.current-tab;
+                clicked => {
+                    Logic.select-tab(i);
+                }
+            }
+        }
+
+        Rectangle {
+            vertical-stretch: 1;
+            background: transparent;
+
+            if !root.ready: Text {
+                width: 100%;
+                height: 100%;
+                text: "Connecting to PipeWire…";
+                color: Theme.text-dim;
+                font-size: Theme.font;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            if root.ready && !root.is-device-tab && root.nodes.length == 0: Text {
+                width: 100%;
+                height: 100%;
+                text: root.empty-text;
+                color: Theme.text-dim;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            if root.ready && root.is-device-tab && root.devices.length == 0: Text {
+                width: 100%;
+                height: 100%;
+                text: root.empty-text;
+                color: Theme.text-dim;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            if root.ready && !root.is-device-tab: ListView {
+                width: 100%;
+                height: 100%;
+                for n[i] in root.nodes: NodeRowView {
+                    index: i;
+                    node: n;
+                    peak: root.peaks[i];
+                }
+            }
+
+            if root.ready && root.is-device-tab: ListView {
+                width: 100%;
+                height: 100%;
+                for d[i] in root.devices: DeviceRowView {
+                    index: i;
+                    device: d;
+                }
+            }
+        }
+    }
+}

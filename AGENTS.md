@@ -7,8 +7,10 @@ skills; this file is only what is special about **wiremix**.
 ## What this is
 
 A dual-mode PipeWire mixer: an interactive ratatui **TUI** and a machine-readable
-**CLI**. It is a `GPL-3.0-or-later` fork of upstream `wiremix` (MIT/Apache-2.0,
-Thomas Sowell). Rust, MSRV 1.74, edition 2021.
+**CLI**, plus an optional Slint **desktop GUI** (`wiremix-gui`, `gui` feature).
+It is a `GPL-3.0-or-later` fork of upstream `wiremix` (MIT/Apache-2.0,
+Thomas Sowell). Rust, MSRV 1.74, edition 2021 — the `gui` feature needs Rust
+≥ 1.88 (current Slint), but the default TUI/CLI MSRV is unchanged.
 
 ## Build / test / lint (run inside `nix develop`)
 
@@ -22,6 +24,9 @@ nix develop -c cargo test  --locked --all-features --all-targets
 nix develop -c cargo clippy --locked --all-features --all-targets -- -D warnings
 nix develop -c cargo fmt --all --check          # rustfmt max_width = 80
 nix develop -c reuse lint                        # REUSE/SPDX compliance
+
+# Optional desktop GUI (not in default build; needs Rust >= 1.88):
+nix develop -c cargo build --locked --features gui --bin wiremix-gui
 ```
 
 A single test: `cargo test <name>` (tests are inline `#[cfg(test)] mod tests`,
@@ -36,6 +41,11 @@ mock `CommandSender` (`src/lib.rs` `mod mock`).
   crates outside `src/wirehose/`.
 - **The TUI path stays untouched by CLI work.** The CLI is a separate one-shot
   path under `src/cli/`; `src/app.rs` (the TUI loop) should not gain CLI logic.
+- **The GUI is a third frontend, not a fork of the core.** `src/gui/` + `ui/`
+  drive the same `wirehose` `Session` and `view::View` as the TUI/CLI (commands
+  via `View`/`CommandSender`, never `pipewire`/`libspa` directly). Keep it
+  behind the `gui` feature so the default build stays Slint-free; do not let
+  GUI logic leak into `src/app.rs` or `src/cli/`.
 - **Dual-mode output contract** (the reason this CLI exists — keep it exact):
   - stdout = data only; stderr = logs, progress, diagnostics, structured errors.
     Never mix them. No ANSI escapes in machine mode. UTF-8, no BOM.
@@ -58,6 +68,8 @@ mock `CommandSender` (`src/lib.rs` `mod mock`).
 - `src/wirehose/` — PipeWire wrapper (Session/State/commands/events).
 - `src/cli/` — one-shot machine CLI (output/envelope/error/dto/oneshot/schema).
 - `src/app.rs` + widgets — the TUI.
+- `src/gui/` + `ui/main.slint` — optional Slint desktop GUI (`gui` feature);
+  `build.rs` compiles the `.slint` only when that feature is on.
 - `src/config/` — TOML config, themes (incl. `steelbore`), char-sets, keybinds.
 - `wiremix.toml` — bundled example + canonical config reference; keep it in sync.
 - `doc/wiremix.texi` — the manual (canonical CLI/option reference).

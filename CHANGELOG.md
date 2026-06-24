@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Optional desktop GUI (`wiremix-gui`), a Slint frontend built with the `gui`
+  cargo feature. Drives the same `wirehose`/`View` core as the TUI and CLI:
+  tabbed mixer with volume sliders, mute, default selection, routing/profile
+  dropdowns, and live peak meters. Not built by default; the `gui` feature
+  requires Rust ≥ 1.88 (the core MSRV of 1.74 is unchanged).
+
 ## [0.11.0] - 2026-06-04
 
 ### Added

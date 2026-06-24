@@ -7,7 +7,9 @@ device settings like input/output ports and profiles.
 It is **dual-mode**: an interactive TUI for humans and a machine-readable,
 agent-native CLI (`--json`, noun-verb subcommands, `schema`/`describe`) for
 automation and AI agents. Run `wiremix` for the TUI; run e.g.
-`wiremix node list --json` for structured output.
+`wiremix node list --json` for structured output. An **optional desktop GUI**
+(`wiremix-gui`, built with the `gui` feature) is available as a third frontend
+— see [Desktop GUI](#desktop-gui).
 
 wiremix's interface is more or less a clone of the wonderful
 [ncpamixer](https://github.com/fulhax/ncpamixer) which was itself inspired by
@@ -350,6 +352,27 @@ wiremix describe                    # capability manifest
 Every write command accepts `--dry-run`; every command accepts the standard
 global flags (`--fields`, `--color`, `--quiet`, `--yes`, …). See the manual
 (`doc/wiremix.texi`) and `wiremix schema` for the full contract.
+
+## Desktop GUI
+
+`wiremix-gui` is an optional desktop frontend built on
+[Slint](https://slint.dev) (software renderer + winit backend, no GPU
+required). It drives the same `wirehose`/`View` core as the TUI and CLI, so it
+is a true third frontend rather than a separate program: a tabbed mixer
+(Playback / Recording / Output / Input / Configuration) with per-node volume
+sliders, mute, default-device selection, routing/target dropdowns, device
+profile selection, and live VU peak meters, themed in Void Navy / Molten Amber.
+
+It is **not** built by default — the default `wiremix` binary pulls in neither
+Slint nor a graphics stack. Enable it with the `gui` cargo feature:
+
+```sh
+cargo build  --release --features gui --bin wiremix-gui
+cargo run    --features gui --bin wiremix-gui
+```
+
+The `gui` feature requires a newer toolchain than the core MSRV (1.74): current
+Slint needs **Rust ≥ 1.88**. The TUI/CLI MSRV is unaffected.
 
 ## Project Posture
 
